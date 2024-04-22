@@ -1,0 +1,34 @@
+name: Build and Publish package to GitHub Packages
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'develop'
+      - 'release'
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+      - name: Run build with Gradle Wrapper
+        run: |
+          chmod +x gradlew
+          ./gradlew build
+        env:
+          RABBIT_HOST: ${{ secrets.RABBIT_HOST }}
+          RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          RABBIT_URI: ${{ secrets.RABBIT_URI }}
+          RABBIT_USERNAME: ${{ secrets.RABBIT_USERNAME }}
+          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+          KAFKA_KEY: ${{ secrets.KAFKA_KEY }}
+          KAFKA_SECRET: ${{ secrets.KAFKA_SECRET }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
