@@ -1,6 +1,6 @@
-name: Build and Publish package to GitHub Packages
+name: Publish package to GitHub Packages
 on:
-  push:
+  pull_request:
     branches:
       - 'master'
 jobs:
@@ -17,11 +17,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@e6e38bacfdf1a337459f332974bb2327a31aaf4b
+        uses: gradle/wrapper-validation-action@v3
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
       - name: Publish package
-        uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
-        with:
-          arguments: publish
+        run: |
+          chmod +x gradlew
+          ./gradlew publish
         env:
-          GITHUB_ACTOR: vanluom123
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          RABBIT_HOST: ${{ secrets.RABBIT_HOST }}
+          RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          RABBIT_URI: ${{ secrets.RABBIT_URI }}
+          RABBIT_USERNAME: ${{ secrets.RABBIT_USERNAME }}
+          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+          KAFKA_KEY: ${{ secrets.KAFKA_KEY }}
+          KAFKA_SECRET: ${{ secrets.KAFKA_SECRET }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
