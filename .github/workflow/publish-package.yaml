@@ -18,7 +18,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
       - name: Run build with Gradle Wrapper
-        run: ./gradlew build
+        run: chmod +x ./gradlew build
+        env:
+          RABBIT_HOST: ${{ secrets.RABBIT_HOST }}
+          RABBIT_PASSWORD: ${{ secrets.RABBIT_PASSWORD }}
+          RABBIT_URI: ${{ secrets.RABBIT_URI }}
+          RABBIT_USERNAME: ${{ secrets.RABBIT_USERNAME }}
+          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+          KAFKA_KEY: ${{ secrets.KAFKA_KEY }}
+          KAFKA_SECRET: ${{ secrets.KAFKA_SECRET }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   publish:
     name: Publish package to GitHub Packages
     runs-on: ubuntu-latest
