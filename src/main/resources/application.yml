@@ -1,0 +1,15 @@
+rabbitmq:
+  host: ${RABBIT_HOST}
+  password: ${RABBIT_PASSWORD}
+  port: 5671
+  uri: ${RABBIT_URI}
+  username: ${RABBIT_USERNAME}
+spring:
+  application:
+    name: messagequeue
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_KEY}' password='${KAFKA_SECRET}';
+    properties.sasl.mechanism: PLAIN
+    properties.security.protocol: SASL_SSL
+    properties.session.timeout.ms: 45000
