@@ -3,39 +3,46 @@ package com.feng.messagequeue.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 @Slf4j
 @Component
 public class RabbitmqConsumer {
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+    private final Channel channel;
 
-    @Autowired
-    private Channel channel;
+    public RabbitmqConsumer(ObjectMapper objectMapper, Channel channel) {
+        this.objectMapper = objectMapper;
+        this.channel = channel;
+    }
 
     public <T> T consume(String queueName, Class<T> classType) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+        BlockingQueue<T> queue = new LinkedBlockingQueue<>();
         try {
             channel.basicConsume(queueName, true, (consumerTag, delivery) -> {
                 String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
                 try {
                     T object = objectMapper.readValue(message, classType);
-                    future.complete(object);
+                    queue.put(object);
                     log.info("Received message: {}", message);
                 } catch (Exception e) {
-                    future.completeExceptionally(e);
+                    log.error("Error processing message: {}", e.getMessage());
+                    throw new RuntimeException("Error processing message", e);
                 }
-            }, consumerTag -> {
-            });
+            }, consumerTag -> {});
         } catch (IOException e) {
-            future.completeExceptionally(e);
+            log.error("Error consuming message: {}", e.getMessage());
         }
-        return future.join();
+        try {
+            return queue.take();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Error waiting for message", e);
+        }
     }
 }
