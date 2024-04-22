@@ -1,5 +1,8 @@
 name: Build and Publish package to GitHub Packages
 on:
+  pull_request:
+    branches:
+      - 'master'
   push:
     branches:
       - 'master'
