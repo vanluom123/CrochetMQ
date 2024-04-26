@@ -4,20 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.Accessors;
+import lombok.experimental.SuperBuilder;
 
 @Getter
 @Setter
-@Accessors(chain = true)
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TestEvent extends BaseEvent {
     private String name;
     private int age;
-
-    @Override
-    public TestEvent setId(String id) {
-        super.setId(id);
-        return this;
-    }
 }

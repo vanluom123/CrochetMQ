@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.connection.Connection;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 
 import java.io.IOException;
 
@@ -24,27 +26,31 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class RabbitmqConsumerTest {
 
-    @Mock
     private Channel channel;
-
+    @Mock
+    private ConnectionFactory connectionFactory;
     private RabbitmqConsumer rabbitmqConsumer;
 
     @BeforeEach
     public void setup() {
         ObjectMapper objectMapper = new ObjectMapper();
-        rabbitmqConsumer = new RabbitmqConsumer(objectMapper, channel);
+        rabbitmqConsumer = new RabbitmqConsumer(objectMapper, connectionFactory);
+        channel = mock(Channel.class);
+        when(connectionFactory.createConnection()).thenReturn(mock(Connection.class));
+        when(connectionFactory.createConnection().createChannel(false)).thenReturn(channel);
     }
 
     @Test
     public void consume_shouldPutObjectInQueue() throws IOException {
         String queueName = "queueName";
         Class<TestEvent> classType = TestEvent.class;
-        String message = "{\n" +
-                "  \"id\": \"1\",\n" +
-                "  \"name\": \"test name\",\n" +
-                "  \"age\": 10\n" +
-                "}";
-        TestEvent testEvent = new TestEvent().setId("1").setName("test name").setAge(10);
+        String message = """
+                {
+                  "id": "1",
+                  "name": "test name",
+                  "age": 10
+                }""";
+        TestEvent testEvent = TestEvent.builder().id("1").name("test name").age(10).build();
 
         Delivery delivery = mock(Delivery.class);
         when(delivery.getBody()).thenReturn(message.getBytes());

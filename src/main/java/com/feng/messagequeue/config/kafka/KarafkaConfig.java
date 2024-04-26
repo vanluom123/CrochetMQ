@@ -1,59 +1,78 @@
-package com.feng.messagequeue.configuration.kafka;
+package com.feng.messagequeue.config.kafka;
 
 import com.fasterxml.jackson.databind.deser.std.StringDeserializer;
 import com.feng.messagequeue.common.Constant;
+import com.feng.messagequeue.props.KarafkaProps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @Configuration
-public class KafkaConsumerConfig {
-    @Autowired
-    private KafkaTemplate<String, String> kafkaTemplate;
+public class KarafkaConfig {
+    final KarafkaProps karafkaProps;
+
+    public KarafkaConfig(KarafkaProps karafkaProps) {
+        this.karafkaProps = karafkaProps;
+    }
+
+    @Bean
+    public ProducerFactory<String, String> producerFactory() {
+        Map<String, Object> configProps = karafkaProps.getProperties();
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.ACKS_CONFIG, Constant.ACKS);
+        configProps.put(ProducerConfig.RETRIES_CONFIG, Constant.RETRY_NUMBER);
+        configProps.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, Constant.RETRY_BACKOFF_MS);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
+    public KafkaTemplate<String, String> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
 
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group-id");
+        Map<String, Object> props = karafkaProps.getProperties();
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, Constant.GROUP_ID);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "100");
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, Constant.AUTO_COMMIT_INTERVAL_MS);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, Constant.EARLIEST);
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "kafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String>
                 factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConcurrency(3);
+        factory.setConcurrency(Constant.NUM_CONCURRENCY);
         factory.setCommonErrorHandler(errorHandler());
         factory.setConsumerFactory(consumerFactory());
         return factory;
     }
 
     private DeadLetterPublishingRecoverer publishingRecover() {
-        return new DeadLetterPublishingRecoverer(kafkaTemplate, (r, e) -> {
+        return new DeadLetterPublishingRecoverer(kafkaTemplate(), (r, e) -> {
             log.error("Exception in publishingRecover : {} ", e.getMessage());
             if (e.getCause() instanceof RecoverableDataAccessException) {
                 return new TopicPartition(Constant.RETRY_TOPIC, r.partition());

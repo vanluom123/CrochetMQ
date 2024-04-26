@@ -1,8 +1,7 @@
-package com.feng.messagequeue.configuration.rabbitmq;
+package com.feng.messagequeue.config.rabbitmq;
 
 import com.feng.messagequeue.common.Constant;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
+import com.feng.messagequeue.props.RabbitProps;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -15,33 +14,19 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
-
 @Configuration
 public class RabbitMQConfig {
+    final RabbitProps rabbitProps;
 
-    @Value("${rabbitmq.username}")
-    private String userName;
-
-    @Value("${rabbitmq.password}")
-    private String password;
-
-    @Value("${rabbitmq.uri}")
-    private String uri;
-
-    @Value("${rabbitmq.host}")
-    private String host;
-
-    @Value("${rabbitmq.port}")
-    private int port;
+    public RabbitMQConfig(RabbitProps rabbitProps) {
+        this.rabbitProps = rabbitProps;
+    }
 
     @Bean
     DirectExchange deadLetterExchange() {
@@ -49,7 +34,12 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    Queue dlq() {
+    DirectExchange exchange() {
+        return new DirectExchange(Constant.EXCHANGE_NAME);
+    }
+
+    @Bean
+    Queue deadLetterQueue() {
         return QueueBuilder.durable(Constant.DEAD_LETTER_QUEUE_NAME)
                 .build();
     }
@@ -59,17 +49,13 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(Constant.QUEUE_NAME)
                 .withArgument("x-dead-letter-exchange", Constant.DEAD_LETTER_EXCHANGE_NAME)
                 .withArgument("x-dead-letter-routing-key", Constant.DEAD_LETTER_ROUTING_KEY)
+                .withArgument("x-message-ttl", rabbitProps.getTtl())
                 .build();
     }
 
     @Bean
-    DirectExchange exchange() {
-        return new DirectExchange(Constant.EXCHANGE_NAME);
-    }
-
-    @Bean
-    Binding DLQbinding(Queue dlq, DirectExchange deadLetterExchange) {
-        return BindingBuilder.bind(dlq).to(deadLetterExchange).with(Constant.DEAD_LETTER_ROUTING_KEY);
+    Binding DLQbinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(Constant.DEAD_LETTER_ROUTING_KEY);
     }
 
     @Bean
@@ -85,13 +71,13 @@ public class RabbitMQConfig {
     @Bean
     public ConnectionFactory connectionFactory() {
         CachingConnectionFactory cf = new CachingConnectionFactory();
-        cf.setUsername(userName);
-        cf.setPassword(password);
-        cf.setUri(uri);
-        cf.setHost(host);
-        cf.setPort(port);
-        cf.setChannelCheckoutTimeout(5000);
-        cf.setConnectionTimeout(10000);
+        cf.setUsername(rabbitProps.getUsername());
+        cf.setPassword(rabbitProps.getPassword());
+        cf.setUri(rabbitProps.getUri());
+        cf.setHost(rabbitProps.getHost());
+        cf.setPort(rabbitProps.getPort());
+        cf.setChannelCheckoutTimeout(rabbitProps.getChanelCheckoutTimeoutMs());
+        cf.setConnectionTimeout(rabbitProps.getConnectionTimeoutMs());
         return cf;
     }
 
@@ -106,23 +92,16 @@ public class RabbitMQConfig {
     public AmqpTemplate amqpTemplate(ConnectionFactory connectionFactory) {
         RetryTemplate retryTemplate = new RetryTemplate();
         SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
-        retryPolicy.setMaxAttempts(3);
+        retryPolicy.setMaxAttempts(rabbitProps.getRetryMaxAttempts());
         retryTemplate.setRetryPolicy(retryPolicy);
 
         FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-        backOffPolicy.setBackOffPeriod(5000);
+        backOffPolicy.setBackOffPeriod(rabbitProps.getBackOffPeriod());
         retryTemplate.setBackOffPolicy(backOffPolicy);
 
         final RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(jsonMessageConverter());
         rabbitTemplate.setRetryTemplate(retryTemplate);
         return rabbitTemplate;
-    }
-
-    @Bean
-    public Channel channel(ConnectionFactory cf) throws IOException, TimeoutException {
-        CachingConnectionFactory cacheCF = (CachingConnectionFactory) cf;
-        Connection conn = cacheCF.getRabbitConnectionFactory().newConnection();
-        return conn.createChannel();
     }
 }

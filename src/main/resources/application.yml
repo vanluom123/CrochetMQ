@@ -4,12 +4,16 @@ rabbitmq:
   port: 5671
   uri: ${RABBIT_URI}
   username: ${RABBIT_USERNAME}
-spring:
-  application:
-    name: messagequeue
-  kafka:
+  ttl: 60000
+  chanel-checkout-timeout-ms: 5000
+  connection-timeout-ms: 5000
+  back-off-period: 5000
+  retry-max-attempts: 3
+
+karafka:
+  properties:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    properties.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_KEY}' password='${KAFKA_SECRET}';
-    properties.sasl.mechanism: PLAIN
-    properties.security.protocol: SASL_SSL
-    properties.session.timeout.ms: 45000
+    sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_KEY}' password='${KAFKA_SECRET}';
+    sasl.mechanism: PLAIN
+    security.protocol: SASL_SSL
+    session.timeout.ms: 45000

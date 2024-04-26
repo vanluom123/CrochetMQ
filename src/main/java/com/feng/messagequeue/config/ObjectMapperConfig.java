@@ -1,4 +1,4 @@
-package com.feng.messagequeue.configuration;
+package com.feng.messagequeue.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;

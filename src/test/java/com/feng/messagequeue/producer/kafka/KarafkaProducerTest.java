@@ -31,10 +31,7 @@ public class KarafkaProducerTest {
 
     @BeforeEach
     public void setup() {
-        event = new TestEvent()
-                .setId("1")
-                .setName("test name")
-                .setAge(10);
+        event = TestEvent.builder().id("1").name("test name").age(10).build();
         ObjectMapper objectMapper = new ObjectMapper();
         karafkaProducer = new KarafkaProducer(kafkaTemplate, objectMapper);
     }
